@@ -1,30 +1,222 @@
+class CntrlCrv:
+    """
+        Cria uma curva de controle e conecta em um objeto 
+        **IMPORTANTE Para acessar os objetos do shape de controle e do seu grupo devem ser utilzados os parametros da classe .cntrl e .cntrlGrp
+        **A classe em si nao eh um transform
+        
+        Parametros: 
+            name (string): nome do novo controle
+            obj(objeto) : objeto que será controlado 
+            connType(string): tipo de conexao (parent,parentConstraint,orientConstraint)
+            icone (string): tipo do icone (cubo,bola,circuloX,circuloY,circuloZ)
+            size (float): escala do controle
+            color (R,G,B): cor
+            rotateOrder (int): ordem de rotacao default zxy
+    """  
+    
+    def __init__ (self,obj=None, connType=None, **kwargs):                
+
+        #seta variaveis com os inputs
+        self.name = kwargs.pop('name','cntrl')            
+        self.cntrlledObj = obj
+        self.icone = kwargs.pop('icone','cubo')
+        self.connType = connType
+        self.cntrlSize = kwargs.pop('size', 1 )
+        self.color = kwargs.pop('color', None)
+        self.rotateOrder = kwargs.pop('rotateOrder', 0) #default xyz
+                                                
+        self.cntrl= None
+        self.cntrlGrp= None
+        self.cnstr = None
+        
+    #constroi icone                            
+        if self.icone== "cubo":
+            crv = pm.curve (n=self.name+"_cntrl", d=1,p=[(-0.5,0.5,0.5), (-0.5,0.5,-0.5), (0.5,0.5,-0.5),(0.5,0.5,0.5),(-0.5,0.5,0.5),(0.5,0.5,0.5),(0.5,-0.5,0.5),(-0.5,-0.5,0.5),(-0.5,0.5,0.5),(-0.5,-0.5,0.5),(-0.5,-0.5,-0.5),(-0.5,0.5,-0.5),(-0.5,-0.5,-0.5),(0.5,-0.5,-0.5),(0.5,0.5,-0.5),(0.5,-0.5,-0.5),(0.5,-0.5,0.5)],k=[0,1,2,3,4 ,5,6,7,8,9,10,11,12,13,14,15,16])
+            crv.scaleX.set (self.cntrlSize)
+            crv.scaleY.set (self.cntrlSize)
+            crv.scaleZ.set (self.cntrlSize)
+            pm.makeIdentity( crv, a = True, t = True, r = True, s = True, n=False )
+        elif self.icone=='bola':
+            crv = pm.circle (n=self.name+"_cntrl" , c=(0,0,0),nr=(0,1,0),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
+            crv1 = pm.circle (c=(0,0,0),nr=(1,0,0),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
+            crv2 = pm.circle (c=(0,0,0),nr=(0,0,1),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
+            pm.parent ([crv1.getShape(),crv2.getShape()], crv, shape=True, r=True)
+            pm.delete (crv1, crv2)
+            crv.scaleX.set (self.cntrlSize)
+            crv.scaleY.set (self.cntrlSize)
+            crv.scaleZ.set (self.cntrlSize)
+            pm.makeIdentity (crv,apply=True,t=1,r=1,s=1,n=0)
+        elif self.icone=='circuloY':
+            crv = pm.circle (n=self.name+"_cntrl" , c=(0,0,0),nr=(0,1,0),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
+            crv.scaleX.set (self.cntrlSize)
+            crv.scaleY.set (self.cntrlSize)
+            crv.scaleZ.set (self.cntrlSize)
+            pm.makeIdentity( crv, a = True, t = True, r = True, s = True, n=False )         
+        elif self.icone=='circuloX':
+            crv = pm.circle (n=self.name+"_cntrl" , c=(0,0,0),nr=(1,0,0),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
+            crv.scaleX.set (self.cntrlSize)
+            crv.scaleY.set (self.cntrlSize)
+            crv.scaleZ.set (self.cntrlSize)
+            pm.makeIdentity( crv, a = True, t = True, r = True, s = True, n=False ) 
+        elif self.icone=='circuloZ':
+            crv = pm.circle (n=self.name+"_cntrl" , c=(0,0,0),nr=(0,0,1),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
+            crv.scaleX.set (self.cntrlSize)
+            crv.scaleY.set (self.cntrlSize)
+            crv.scaleZ.set (self.cntrlSize)
+            pm.makeIdentity( crv, a = True, t = True, r = True, s = True, n=False ) 
+            
+    #seta ordem de rotacao        
+        crv.rotateOrder.set(self.rotateOrder)
+        grp = pm.group (crv, n=self.name+"_grp")
+        crv.rotateOrder.set(self.rotateOrder)
+        pm.xform (grp, os=True, piv=[0,0,0])
+        
+    #cor
+        if self.color:
+            shList = crv.getShapes()
+            for sh in shList:
+                sh.overrideEnabled.set (1)
+                sh.overrideRGBColors.set(1)
+                sh.overrideColorRGB.set (self.color) 
+        
+    #faz a conexao
+        if self.cntrlledObj:
+            matrix =pm.xform (self.cntrlledObj, q=True,  ws=True ,m=True) 
+        
+            pm.xform (grp, ws=True,  m=matrix)
+            
+            if self.connType=='parent':
+                self.cntrlledObj.setParent (crv)
+            elif self.connType=='parentConstraint':
+                self.cnstr = pm.parentConstraint (crv, self.cntrlledObj, mo=True)
+            elif self.connType=='orientConstraint':
+                self.cnstr = pm.orientConstraint (crv, self.cntrlledObj, mo=True)                  
+        self.cntrl= crv
+        self.cntrlGrp = grp
+        
+        
+class twistExtractor:
+    """
+        Cria uma estrutura para calcular o twist de um joint 
+        Parametros: 
+            twistJntIn: joint a ser calculado
+    """  
+    
+    def __init__(self, twistJntIn, conn='parentConstraint' ):
+        
+        self.extractor = None
+        self.axis= 'X' #hard coding X como eixo. Aparentemente so ele funciona
+        self.extractorGrp = None
+        
+        #Error Handling
+        try:
+            twistJnt=pm.PyNode(twistJntIn)
+        except:
+            print "ERROR:The Node Doesn't Exist:", twistJntIn
+            return
+
+        try:
+            twistJnt.getParent()
+        except:
+            print "ERROR:The Node Has No Parent:", twistJntIn
+            return
+            
+        try:
+            twistJnt.childAtIndex(0)
+        except:
+            print "ERROR:The Node Has No Child:", twistJntIn
+            return
+        
+        if twistJnt.nodeType() != 'joint':
+            print "ERROR:The Node Is Not A Joint:", twistJntIn
+            return    
+        
+        if twistJnt.childAtIndex(0).nodeType() != 'joint':
+            print "ERROR:The Node Child Is Not A Joint:", twistJnt.childAtIndex(0)
+            return 
+                    
+        #cria grupo base e parenteia no pai do joint fonte do twist
+        extractorGrp = pm.group (empty = True)
+        matrix =pm.xform (twistJnt.getParent(),q=True, m=True, ws=True)
+        pm.xform (extractorGrp, m=matrix , ws=True)
+        
+        if conn=='parentConstraint':
+            pm.parentConstraint (twistJnt.getParent(),extractorGrp,  mo=False)
+        elif  conn=='parent':
+            pm.parent (extractorGrp,twistJnt.getParent())
+        
+        self.extractorGrp =  extractorGrp         
+        #pm.scaleConstraint (twistJnt.getParent(),extractorGrp,  mo=True)
+        
+        #duplica o joint fonte do twist e seu filho
+        extractorStart = pm.duplicate (twistJnt, po=True)[0]
+        pm.makeIdentity (extractorStart, a=True, r=True)
+        extractorEnd = pm.duplicate (twistJnt.childAtIndex(0), po=True)[0]
+        pm.parent (extractorEnd, extractorStart)
+        pm.parent (extractorStart, extractorGrp)
+        
+        #cria o locator que calcula o twist. Cria OrientConstraint
+        extractorLoc = pm.spaceLocator ()
+        pm.parent (extractorLoc,  extractorStart, r=True)
+        ori = pm.orientConstraint (twistJnt, extractorStart, extractorLoc, mo=False) 
+        ori.interpType.set (0)
+        
+        #cria ik handle com polevector zerado e parenteia no joint fonte (noRoll)
+        extractorIkh = pm.ikHandle( sj=extractorStart, ee=extractorEnd, sol='ikRPsolver')[0]
+        extractorIkh.poleVector.set(0,0,0)        
+        pm.parentConstraint (twistJnt, extractorIkh, mo=True)
+        pm.parent (extractorIkh, extractorGrp )
+        
+        # multiplica por 2 o valor de rot do locator
+        pm.addAttr (extractorLoc, ln='extractTwist', at='double', k=1)
+        multi = pm.createNode ('multDoubleLinear')
+        multi.input2.set(2)
+        extractorLoc.attr('rotate'+self.axis) >> multi.input1
+        multi.output >> extractorLoc.extractTwist
+        self.extractor = extractorLoc
+
 class RibbonBezier:
-    def __init__(self,ribbonDict=None ):
+    """
+        Cria um ribbon bezier
+        Parametros: 
+            name:
+            size:
+            numJoints:
+           
+    """ 
+    ##IMPLEMENTAR:
+    #controle de twist fique liberado pra q o usuario de offset, principalmente no inicio
+    #stretch/squash com distancia ja no ribbon
+        
+    def __init__( self, **kwargs ):
         
         self.ribbonDict = {}
-               
-        if ribbonDict:
-            self.ribbonDict = ribbonDict
-        
-        if not 'size' in self.ribbonDict:
-            self.ribbonDict['size']=10
-        if not 'name' in self.ribbonDict:
-            self.ribbonDict['name']='ribbonBezier'
-        if not 'numJnts' in self.ribbonDict:
-            self.ribbonDict['numJnts']=10
-        
+                    
+        self.ribbonDict['size']=kwargs.pop('size', 10)
+        self.ribbonDict['name']=kwargs.pop('name','ribbonBezier')
+        self.ribbonDict['numJnts']=kwargs.pop('numJnts',10)
+            
         self.name = self.ribbonDict['name']
         self.size = self.ribbonDict['size']
         self.numJnts = self.ribbonDict['numJnts']
         
-                   
+        self.ribbonDict['cntrlSetup']={'name':'cntrl','icone':'circuloX','size':0.6,'color':(0,0,1)}       
+        self.ribbonDict['cntrlTangSetup']={'name':'cntrl','icone':'bola','size':0.3,'color':(0,1,1)}        
+        self.ribbonDict['cntrlExtraSetup']={'name':'cntrlExtra','icone':'circuloX','size':0.2}        
+
+           
     def doRig(self): 
         anchorList = []
         cntrlList =[]
         locList =[]
-               
+        
+        if pm.objExists(self.name+'NoMove'):
+            pm.delete (self.name+'NoMove')
+        if pm.objExists(self.name+'MoveAll'):
+            pm.delete (self.name+'MoveAll')
+                           
         ###Estrutura que nao deve ter transformacao       
-        noMoveSpace = pm.group (empty=True, n='ribbonBezierNoMove')
+        noMoveSpace = pm.group (empty=True, n=self.name+'NoMove')
         noMoveSpace.visibility.set(0)
         noMoveSpace.translate.set(self.size*-0.5,0,0)    
         noMoveBend1 = pm.nurbsPlane ( p=(self.size*-0.25,0,0), ax=(0,0,1), w=self.size*0.5, lr = .1 , d = 3, u =5, v =1)        
@@ -43,7 +235,7 @@ class RibbonBezier:
         pm.parent (twist1[1],twist2[1], noMoveSpace) 
         
         ###Estrutura que pode ser movida
-        cntrlsSpace = pm.group (empty=True, n='ribbonBezierMoveAll')
+        cntrlsSpace = pm.group (empty=True, n=self.name+'MoveAll')
         cntrlsSpace.translate.set(self.size*-0.5,0,0)
         bendSurf1 = pm.nurbsPlane ( p=(self.size*-0.25,0,0), ax=(0,0,1), w=self.size*0.5, lr = .1 , d = 3, u =5, v =1)
         bendSurf2 = pm.nurbsPlane ( p=(self.size*0.25,0,0), ax=(0,0,1), w=self.size*0.5, lr = .1 , d = 3, u =5, v =1)   
@@ -67,9 +259,14 @@ class RibbonBezier:
             anchorList.append (anchor[1])
                                     
             if i==0 or i==3 or i==6:
-                cntrl = CntrlCrv ('cntrl'+str(i+1), anchor[1], 'cubo',None, 0.5, (0,0,1))
+                kwargs= self.ribbonDict['cntrlSetup']                               
+                kwargs['name'] = kwargs['name']+str(i)           
+                cntrl = CntrlCrv (anchor[1],**kwargs)
             else:
-                cntrl = CntrlCrv ('cntrl'+str(i+1), anchor[1], 'cubo',None, 0.3, (0,1,1))        
+                kwargs= self.ribbonDict['cntrlTangSetup']                               
+                kwargs['name'] = kwargs['name']+str(i) 
+                cntrl = CntrlCrv (anchor[1],**kwargs)
+                        
             #Nao pode fazer conexao na criacao do controle, pois tera conexao direta
             pm.xform (cntrl.cntrlGrp, t=pos, ws=True)
             
@@ -144,8 +341,11 @@ class RibbonBezier:
         for i in range (1,(self.numJnts/2)+1):
             #cria estrutura pra superficie 1
             pm.select (cl=True)
-            jnt1 = pm.joint (p=(0,0,0)) 
-            cntrl1 = CntrlCrv ('cntrlExtraA'+str(i), jnt1, 'cubo','parentConstraint',0.2)         
+            jnt1 = pm.joint (p=(0,0,0))
+            
+            kwargs= self.ribbonDict['cntrlExtraSetup']                               
+            kwargs['name'] = kwargs['name']+'A'+str(i) 
+            cntrl1 = CntrlCrv (jnt1,'parentConstraint',**kwargs)         
             #node tree
             blend1A = pm.createNode ('blendTwoAttr')
             blend1B = pm.createNode ('blendTwoAttr')
@@ -164,8 +364,10 @@ class RibbonBezier:
             
             #cria estrutura pra superficie 2       
             pm.select (cl=True)
-            jnt2 = pm.joint (p=(0,0,0))            
-            cntrl2 = CntrlCrv ('cntrlExtraB'+str(i), jnt2, 'cubo','parentConstraint',0.2)            
+            jnt2 = pm.joint (p=(0,0,0))
+            kwargs= self.ribbonDict['cntrlExtraSetup']                               
+            kwargs['name'] = kwargs['name']+'B'+str(i)             
+            cntrl2 = CntrlCrv (jnt2, 'parentConstraint',**kwargs)            
             #node tree    
             blend2A = pm.createNode ('blendTwoAttr')
             blend2B = pm.createNode ('blendTwoAttr')
@@ -269,171 +471,89 @@ class RibbonBezier:
             hookPoci.parameter.set(hookPar)
     
         pm.delete (upNPoC, upGrpA , jntNPoC, jntGrpA)
-        
-class CntrlCrv():
-    """
-        Cria uma curva de controle e conecta em um objeto 
-        **IMPORTANTE Para acessar os objetos do shape de controle e do seu grupo devem ser utilzados os parametros da classe .cntrl e .cntrlGrp
-        **A classe em si nao eh um transform
-        
-        Parametros: 
-            name (string): nome do novo controle
-            obj(objeto) : objeto que será controlado 
-            type(string): tipo de conexao 
-                                    parent - parenteia o objeto ao controle
-                                    contraint
-                                    conexao direta
-            icone (string): tipo do icone
-                                cubo
-            cntrlself.size (float): escala do controle
-            rotateOrder (int): ordem de rotacao default zxy
-    """  
-    
-    def __init__ (self, name, obj = None, icone='cubo', type = None, cntrlSize=1, color=(0,0,0), rotateOrder=2):                
 
-    #seta variaveis com os inputs
-        self.name = name
-        self.rotateOrder = rotateOrder # seta rotation order. Por default: zxy
-        self.cntrlSize = cntrlSize     
-        self.cntrlledObj = obj
-        self.cntrl= None
-        self.cntrlGrp= None
-        self.cnstr = None
-        self.color = color
-    #constroi icone                            
-        if icone== "cubo":
-            crv = pm.curve (n=name+"_cntrl", d=1,p=[(-0.5,0.5,0.5), (-0.5,0.5,-0.5), (0.5,0.5,-0.5),(0.5,0.5,0.5),(-0.5,0.5,0.5),(0.5,0.5,0.5),(0.5,-0.5,0.5),(-0.5,-0.5,0.5),(-0.5,0.5,0.5),(-0.5,-0.5,0.5),(-0.5,-0.5,-0.5),(-0.5,0.5,-0.5),(-0.5,-0.5,-0.5),(0.5,-0.5,-0.5),(0.5,0.5,-0.5),(0.5,-0.5,-0.5),(0.5,-0.5,0.5)],k=[0,1,2,3,4 ,5,6,7,8,9,10,11,12,13,14,15,16])
-            crv.scaleX.set (self.cntrlSize)
-            crv.scaleY.set (self.cntrlSize)
-            crv.scaleZ.set (self.cntrlSize)
-            pm.makeIdentity( crv, a = True, t = True, r = True, s = True, n=False )
-        elif icone=='bola':
-            crv = pm.circle (n=name+"_cntrl" , c=(0,0,0),nr=(0,1,0),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
-            crv1 = pm.circle (c=(0,0,0),nr=(1,0,0),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
-            crv2 = pm.circle (c=(0,0,0),nr=(0,0,1),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
-            pm.parent ([crv1.getShape(),crv2.getShape()], crv, shape=True, r=True)
-            pm.delete (crv1, crv2)
-            crv.scaleX.set (self.cntrlSize)
-            crv.scaleY.set (self.cntrlSize)
-            crv.scaleZ.set (self.cntrlSize)
-            pm.makeIdentity (crv,apply=True,t=1,r=1,s=1,n=0)
-        elif icone=='circuloY':
-            crv = pm.circle (n=name+"_cntrl" , c=(0,0,0),nr=(0,1,0),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
-            crv.scaleX.set (self.cntrlSize)
-            crv.scaleY.set (self.cntrlSize)
-            crv.scaleZ.set (self.cntrlSize)
-            pm.makeIdentity( crv, a = True, t = True, r = True, s = True, n=False )         
-        elif icone=='circuloX':
-            crv = pm.circle (n=name+"_cntrl" , c=(0,0,0),nr=(1,0,0),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
-            crv.scaleX.set (self.cntrlSize)
-            crv.scaleY.set (self.cntrlSize)
-            crv.scaleZ.set (self.cntrlSize)
-            pm.makeIdentity( crv, a = True, t = True, r = True, s = True, n=False ) 
-        elif icone=='circuloZ':
-            crv = pm.circle (n=name+"_cntrl" , c=(0,0,0),nr=(0,0,1),sw=360,r=0.5,d=3,ut=0,ch=0)[0]
-            crv.scaleX.set (self.cntrlSize)
-            crv.scaleY.set (self.cntrlSize)
-            crv.scaleZ.set (self.cntrlSize)
-            pm.makeIdentity( crv, a = True, t = True, r = True, s = True, n=False ) 
-            
-    #seta ordem de rotacao        
-        crv.rotateOrder.set(self.rotateOrder)
-        grp = pm.group (crv, n=name+"_grp")
-        crv.rotateOrder.set(self.rotateOrder)
-        pm.xform (grp, os=True, piv=[0,0,0])
+    def connectToLimb(self,limbObject): 
+        #seta as variaveis locais com valores dos dicionarios dos objetos                 
+        ribbonMoveAll = self.ribbonDict['ribbonMoveAll']
+        limbMoveAll = limbObject.limbDict['limbMoveAll']
+        limbJoint1 = limbObject.limbDict['joint1']
+        limbJoint2 = limbObject.limbDict['joint2']
+        limbJoint3 = limbObject.limbDict['joint3']
+        limbJoint4 = limbObject.limbDict['joint4']
+        ribbonEndCntrl = self.ribbonDict['cntrl0']
+        ribbonMidCntrl = self.ribbonDict['cntrl3']
+        ribbonStartCntrl = self.ribbonDict['cntrl6']
+        ribbonMid2TangCntrl = self.ribbonDict['cntrl4']
+        ribbonMid1TangCntrl = self.ribbonDict['cntrl2']
+        if limbObject.flipAxis:
+            rotY=180
+        else:
+            rotY=0
+        #grupos de conexao
+        startGrp = pm.group (em=True)
+        midGrp = pm.group (em=True)
+        endGrp = pm.group (em=True)
+ 
+        pm.parentConstraint (limbJoint1,endGrp,mo=False)
+        pm.pointConstraint (limbJoint2,midGrp,mo=False)
+        ori = pm.orientConstraint (limbJoint2,limbJoint1,midGrp,mo=False)
+        ori.interpType.set (2)
+        pm.parentConstraint (limbJoint3,startGrp,mo=False)
         
-    #cor
-        shList = crv.getShapes()
-        for sh in shList:
-            sh.overrideEnabled.set (1)
-            sh.overrideRGBColors.set(1)
-            sh.overrideColorRGB.set (self.color) 
-        
-    #faz a conexao
-        if self.cntrlledObj:
-            matrix =pm.xform (self.cntrlledObj, q=True,  ws=True ,m=True) 
-        
-            pm.xform (grp, ws=True,  m=matrix)
-            
-            if type=='parent':
-                obj.setParent (crv)
-            elif type=='parentConstraint':
-                cnstr = pm.parentConstraint (crv, obj, mo=True)
-                self.cnstr = cnstr
-            elif type=='orientConstraint':
-                cnstr = pm.orientConstraint (crv, obj, mo=True)
-                self.cnstr = cnstr                  
-        self.cntrl= crv
-        self.cntrlGrp = grp
-        
-        
-class twistExtractor:
-    """
-        Cria uma estrutura para calcular o twist de um joint 
-        Parametros: 
-            twistJntIn: joint a ser calculado
-    """  
-    
-    def __init__(self, twistJntIn ):
-        
-        self.extractor = None
-        self.axis= 'X' #hard coding X como eixo. Aparentemente so ele funciona
-        
-        #Error Handling
-        try:
-            twistJnt=pm.PyNode(twistJntIn)
-        except:
-            print "ERROR:The Node Doesn't Exist:", twistJntIn
-            return
+        #hierarquia
+        pm.parent (ribbonMoveAll, limbJoint1)
+        ribbonMoveAll.translate.set(0,0,0)
+        ribbonMoveAll.rotate.set(0,rotY,0)
+        pm.parent (ribbonMoveAll, limbMoveAll)
+        pm.parentConstraint (limbJoint1, ribbonMoveAll, mo=True)
 
-        try:
-            twistJnt.getParent()
-        except:
-            print "ERROR:The Node Has No Parent:", twistJntIn
-            return
-            
-        try:
-            twistJnt.childAtIndex(0)
-        except:
-            print "ERROR:The Node Has No Child:", twistJntIn
-            return
+        pm.parent (ribbonEndCntrl.cntrlGrp, endGrp)
+        pm.parent (ribbonMidCntrl.cntrlGrp, midGrp)
+        pm.parent (ribbonStartCntrl.cntrlGrp, startGrp)
+        pm.parent (startGrp,midGrp,endGrp,ribbonMoveAll)
+
+        ##lembrar de implementar outras possibilidade de eixos. Hardcode de X
+        ribbonEndCntrl.cntrlGrp.translate.set(0,0,0)
+        ribbonEndCntrl.cntrlGrp.rotate.set(0,rotY,0)
+        ribbonMidCntrl.cntrlGrp.translate.set(0,0,0)
+        ribbonMidCntrl.cntrlGrp.rotate.set(0,rotY,0)
+        ribbonStartCntrl.cntrlGrp.translate.set(0,0,0)
+        ribbonStartCntrl.cntrlGrp.rotate.set(0,rotY,0)
+
+        #sistema de controle das tangentes suaves ou duras
+        mid1AimGrp = pm.group (em=True, p=ribbonMidCntrl.cntrl)
+        mid2AimGrp = pm.group (em=True, p=ribbonMidCntrl.cntrl)
+        mid1SpcSwithGrp = pm.group (em=True, p=ribbonMidCntrl.cntrl)
+        mid2SpcSwithGrp = pm.group (em=True, p=ribbonMidCntrl.cntrl)
+
+        pm.aimConstraint (limbJoint1, mid1AimGrp ,weight=1, aimVector=(-1, 0 ,0) , upVector=(0, 1, 0),worldUpVector=(0,1,0), worldUpType='objectrotation', worldUpObject=limbJoint1 )
+        pm.aimConstraint (limbJoint3, mid2AimGrp ,weight=1, aimVector=(1, 0 ,0) , upVector=(0, 1, 0),worldUpVector=(0,1,0), worldUpType='objectrotation', worldUpObject=limbJoint1 )
+        pm.parent (ribbonMid1TangCntrl.cntrlGrp,mid1SpcSwithGrp)
+        pm.parent (ribbonMid2TangCntrl.cntrlGrp,mid2SpcSwithGrp)
+        #node tree
+        aimBlend1 = pm.createNode('blendTwoAttr')
+        aimBlend2 = pm.createNode('blendTwoAttr')
+        ribbonMoveAll.addAttr ('softTang1', at='float', dv=0, max=1, min=0,k=1)
+        ribbonMoveAll.addAttr ('softTang2', at='float', dv=0, max=1, min=0,k=1)
+        aimBlend1.input[0].set(0)
+        mid1AimGrp.rotateY >> aimBlend1.input[1]
+        aimBlend2.input[0].set(0)
+        mid2AimGrp.rotateY >> aimBlend2.input[1]
+        ribbonMoveAll.softTang1 >> aimBlend1.attributesBlender
+        ribbonMoveAll.softTang2 >> aimBlend2.attributesBlender
+        aimBlend1.output >> mid1SpcSwithGrp.rotateY
+        aimBlend2.output >> mid2SpcSwithGrp.rotateY
         
-        if twistJnt.nodeType() != 'joint':
-            print "ERROR:The Node Is Not A Joint:", twistJntIn
-            return    
+        #twist extractors
+        extra1 =  twistExtractor (limbJoint4)
+        extra2 =  twistExtractor (limbJoint1, None)        
+        pm.parent (extra1.extractorGrp,extra2.extractorGrp, limbMoveAll )        
+        pm.pointConstraint (limbJoint1, extra2.extractorGrp, mo=True)        
+        extra1.extractor.extractTwist >> ribbonStartCntrl.cntrl.twist        
+        extractMulti = pm.createNode('multDoubleLinear')
+        extra2.extractor.extractTwist >> extractMulti.input1
+        extractMulti.input2.set(-1)
+        extractMulti.output >> ribbonEndCntrl.cntrl.twist
+        extra1.extractorGrp.visibility.set(0)
+        extra2.extractorGrp.visibility.set(0)
         
-        if twistJnt.childAtIndex(0).nodeType() != 'joint':
-            print "ERROR:The Node Child Is Not A Joint:", twistJnt.childAtIndex(0)
-            return 
-                    
-        #cria grupo base e parenteia no pai do joint fonte do twist
-        extractorGrp = pm.group (empty = True)
-        pm.parentConstraint (twistJnt.getParent(),extractorGrp,  mo=False)
-        pm.scaleConstraint (twistJnt.getParent(),extractorGrp,  mo=True)
-        
-        #duplica o joint fonte do twist e seu filho
-        extractorStart = pm.duplicate (twistJnt, po=True)[0]
-        pm.makeIdentity (extractorStart, a=True, r=True)
-        extractorEnd = pm.duplicate (twistJnt.childAtIndex(0), po=True)[0]
-        pm.parent (extractorEnd, extractorStart)
-        pm.parent (extractorStart, extractorGrp)
-        
-        #cria o locator que calcula o twist. Cria OrientConstraint
-        extractorLoc = pm.spaceLocator ()
-        pm.parent (extractorLoc,  extractorStart, r=True)
-        ori = pm.orientConstraint (twistJnt, extractorStart, extractorLoc, mo=False) 
-        ori.interpType.set (0)
-        
-        #cria ik handle com polevector zerado e parenteia no joint fonte (noRoll)
-        extractorIkh = pm.ikHandle( sj=extractorStart, ee=extractorEnd, sol='ikRPsolver')[0]
-        extractorIkh.poleVector.set(0,0,0)        
-        pm.parentConstraint (twistJnt, extractorIkh, mo=True)
-        pm.parent (extractorIkh, extractorGrp )
-        
-        # multiplica por 2 o valor de rot do locator
-        pm.addAttr (extractorLoc, ln='extractTwist', at='double', k=1)
-        multi = pm.createNode ('multDoubleLinear')
-        multi.input2.set(2)
-        extractorLoc.attr('rotate'+self.axis) >> multi.input1
-        multi.output >> extractorLoc.extractTwist
-        self.extractor = extractorLoc

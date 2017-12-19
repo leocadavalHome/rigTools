@@ -17,60 +17,51 @@ class Limb():
             handJoint (boolean): se exite joint da mao
             axis (string:'X','Y' ou 'Z'): eixo ao longo do bone
                  
-    """                
-    def __init__ (self, limbDict=None):
+    """  
+    ## IMPLEMENTAR:
+    #  setagem de parametros e formatacao de nomes 
+    #  grupos de spaceSwitch acima dos controles
+ 
+    #self.twoJoints=False RETIREI CODIGO DE ARTICULACAO DE DOIS JOINTS. PRECISA FAZER IMPLEMENTACAO COMPLETA 
+                 
+    def __init__ (self, **kwargs):
 
-        ####
-        ## FALTA IMPLEMENTAR:
-        #  setagem de parametros e formatacao de nomes 
-        #  grupos de spaceSwitch acima dos controles
-        #  blend de visibilidade do ikfk
-        #  multiplicar o manual stretch pela escala do moveall do limb
-        ### 
-        #self.twoJoints=False RETIREI CODIGO DE ARTICULACAO DE DOIS JOINTS. PRECISA FAZER IMPLEMENTACAO COMPLETA
-        self.limbDict = {}
-        
-        if limbDict:
-            self.limbDict = limbDict
-              
-        if not 'name' in self.limbDict:
-            self.limbDict['name']='limb' 
-        if not 'ikCntrl' in self.limbDict:
-            self.limbDict['ikCntrl']='Ik'
-        if not 'startCntrl' in self.limbDict:
-            self.limbDict['startCntrl']='Start'            
-        if not 'midCntrl' in self.limbDict:
-            self.limbDict['midCntrl']='Mid'
-        if not 'endCntrl' in self.limbDict:
-            self.limbDict['endCntrl']='End' 
-        if not 'poleCntrl' in self.limbDict:
-            self.limbDict['poleCntrl']='PoleVec'                                
-        if not 'flipAxis' in self.limbDict:
-            self.limbDict['flipAxis']=False            
-        if not 'handJoint' in self.limbDict:
-            self.limbDict['handJoint']=True            
-        if not 'axis' in self.limbDict:
-            self.limbDict['axis']='X'
-        
-        ##implementar aqui as setagens padrao    
-        self.limbDict['ikCntrlSetup'] = {'name':None, 'icone':None, 'cntrlSize':None, 'rotOrder':None}   
-        self.limbDict['midCntrlSetup'] = {'name':None, 'icone':None, 'cntrlSize':None, 'rotOrder':None}
-        self.limbDict['endCntrlSetup'] = {'name':None, 'icone':None, 'cntrlSize':None, 'rotOrder':None}
-        self.limbDict['poleVecSetup'] = {'name':None, 'icone':None, 'cntrlSize':None, 'rotOrder':None}
-        self.limbDict['nodeTree']={}
-        self.limbDict['nameConventions']=None
-        ##e implementar no codigo esses padroes de nome
+        self.limbDict={'name':'limb',
+                       'ikCntrl':None,
+                       'startCntrl':None,
+                       'midCntrl':None,
+                       'endCntrl':None,
+                       'poleCntrl':None,
+                       'flipAxis':False,
+                       'handJoint':True,
+                       'axis':'X',
+                       'moveAll1Cntrl':None} #valores default
+
+        self.limbDict.update(kwargs) # atualiza com o q foi entrado
+
         self.name = self.limbDict['name']
         self.flipAxis = self.limbDict['flipAxis']
         self.axis = self.limbDict['axis']
         self.handJoint = self.limbDict['handJoint']
+                    
+        ##setups visuais dos controles
+        self.limbDict['moveAll1CntrlSetup']={'name':self.name+'moveAll1', 'icone':'circulo'+self.axis,'size':1.5,'color':(1,1,0) }    
+        self.limbDict['ikCntrlSetup'] = {'name':self.name+'Ik', 'icone':'cubo','size':0.75,'color':(1,0,0) }    
+        self.limbDict['startCntrlSetup'] = {'name':self.name+'Start', 'icone':'cubo','size':0.5,'color':(0,1,0) }
+        self.limbDict['midCntrlSetup'] = {'name':self.name+'Mid', 'icone':'cubo', 'size':0.5, 'color':(0,1,0)}
+        self.limbDict['endCntrlSetup'] = {'name':self.name+'End', 'icone':'cubo', 'size':0.5, 'color':(0,1,0)}
+        self.limbDict['poleVecCntrlSetup'] = {'name':self.name+'PoleVec', 'icone':'bola', 'size':0.4, 'color':(1,0,0)}
+        self.limbDict['nodeTree'] = {}
+        self.limbDict['nameConventions'] = None
+        ##e implementar no codigo padroes de nome 
         
-    def doRig(self):     
-        #implementar apagar todos os node ao reconstruir                      
+    def doRig(self):
+            
+        #apagar todos os node ao reconstruir                      
         if pm.objExists(self.name+'MoveAll'):
             pm.delete (self.name+'MoveAll')
             
-        #Cria o grupo moveAl
+        #Cria o grupo moveAll
         limbMoveAll = pm.group(empty=True, n=self.name+'MoveAll')
         limbMoveAll.addAttr('ikfk', at='float',min=0, max=1,dv=1, k=1)
 
@@ -204,18 +195,25 @@ class Limb():
             axisName=self.axis
         else:
             axisName='X'
-            
-        endCntrl = CntrlCrv (self.name+self.limbDict['endCntrl'], j1, 'circulo'+axisName, 'parentConstraint',1,(0,1,0))
+        
+        kwargs=self.limbDict['moveAll1CntrlSetup']
+        moveAll1Cntrl = CntrlCrv(j1, **kwargs)
+        
+        kwargs=self.limbDict['endCntrlSetup']            
+        endCntrl = CntrlCrv (j1,'parentConstraint', **kwargs )
         endCntrl.cntrl.addAttr('manualStretch', at='float',min=.1,dv=1, k=1)
         
-        midCntrl = CntrlCrv (self.name+self.limbDict['midCntrl'], j2, 'circulo'+axisName, 'orientConstraint',1,(0,1,0))
+        kwargs=self.limbDict['midCntrlSetup'] 
+        midCntrl = CntrlCrv (j2,'orientConstraint',**kwargs)
         midCntrl.cntrl.addAttr('manualStretch', at='float',min=.1,dv=1, k=1)
         
         pm.pointConstraint (j2, midCntrl.cntrlGrp, mo=True)
         
         ##Estrutura IK
         ikH = pm.ikHandle (sj=j1, ee=j3, sol="ikRPsolver")
-        ikCntrl = CntrlCrv(self.name+self.limbDict['ikCntrl'],ikH[0],'cubo','parent',0.75,(1,0,0))
+        kwargs=self.limbDict['ikCntrlSetup']
+        ikCntrl = CntrlCrv(ikH[0],'parent',**kwargs)
+        
         ikCntrl.cntrl.addAttr ('pin', at='float',min=0, max=1,dv=0, k=1)
         ikCntrl.cntrl.addAttr ('bias', at='float',min=-0.9, max=0.9, k=1)
         ikCntrl.cntrl.addAttr ('autoStretch', at='float',min=0, max=1,dv=1, k=1)
@@ -223,7 +221,8 @@ class Limb():
         ikCntrl.cntrl.addAttr ('twist', at='float',dv=0, k=1)        
             
         #pole vector
-        poleVec = CntrlCrv(self.name+self.limbDict['poleCntrl'],j2,'bola',None,0.5,(1,0,0))
+        kwargs=self.limbDict['poleVecCntrlSetup']
+        poleVec = CntrlCrv(j2,**kwargs)
         
         #calcula a direcao q deve ficar o polevector
         BA=B-A
@@ -242,11 +241,13 @@ class Limb():
         pm.xform (poleVec.cntrlGrp , ro=(0,0,0)) 
         pm.poleVectorConstraint (poleVec.cntrl, ikH[0])
         pm.parent (midCntrl.cntrlGrp, endCntrl.cntrl)
-        pm.parent (endCntrl.cntrlGrp, poleVec.cntrlGrp, ikCntrl.cntrlGrp, limbMoveAll)
+        pm.parent (endCntrl.cntrlGrp, moveAll1Cntrl.cntrl)
+        pm.parent (moveAll1Cntrl.cntrlGrp, poleVec.cntrlGrp, ikCntrl.cntrlGrp, limbMoveAll)
 
         #handCntrls se houver
         if self.handJoint:
-            startCntrl = CntrlCrv (self.name+self.limbDict['ikCntrl'], j4, 'circulo'+axisName, None,1,(0,1,0))
+            kwargs=self.limbDict['startCntrlSetup']
+            startCntrl = CntrlCrv (j4,**kwargs)
             buf=pm.group (em=True)
             matrix=pm.xform (j4, q=True, ws=True, m=True)
             pm.xform (buf, m=matrix, ws=True)
@@ -404,7 +405,26 @@ class Limb():
         limbMoveAll.ikfk >> ikH[0].ikBlend      
         ikfkBlend1.output >> j1.attr('scale'+axisName) 
         ikfkBlend2.output >> j2.attr('scale'+axisName)
-               
+        
+        
+        ##ikfk visibility
+        ikCntrlVisCond = pm.createNode ('condition',n='ikVisCond')
+        fkCntrlVisCond = pm.createNode ('condition',n='fkVisCond')
+        limbMoveAll.ikfk >> ikCntrlVisCond.ft
+        ikCntrlVisCond.secondTerm.set (0)
+        ikCntrlVisCond.operation.set (1)
+        ikCntrlVisCond.colorIfTrueR.set (1)
+        ikCntrlVisCond.colorIfFalseR.set (0)
+        limbMoveAll.ikfk >> fkCntrlVisCond.ft
+        fkCntrlVisCond.secondTerm.set (1)
+        fkCntrlVisCond.operation.set (1)
+        fkCntrlVisCond.colorIfTrueR.set (1)
+        fkCntrlVisCond.colorIfFalseR.set (0)
+        
+        ikCntrlVisCond.outColor.outColorR >> ikCntrl.cntrlGrp.visibility
+        ikCntrlVisCond.outColor.outColorR >> poleVec.cntrlGrp.visibility
+        fkCntrlVisCond.outColor.outColorR >> endCntrl.cntrlGrp.visibility
+                       
         ##Atributos e conexoes do controle ik
         ikCntrl.cntrl.bias >> biasAdd2.input1D[1]
         ikCntrl.cntrl.bias >> biasAdd1.input1D[0]
