@@ -1,7 +1,5 @@
 import pymel.core as pm
 import maya.api.OpenMaya as om
-import lcRigToolbox as tbox
-import lcGeneric as gen
 
 class Limb():
     """
@@ -45,12 +43,12 @@ class Limb():
         self.handJoint = self.limbDict['handJoint']
                     
         ##setups visuais dos controles
-        self.limbDict['moveAll1CntrlSetup']={'name':self.name+'moveAll1', 'icone':'circulo'+self.axis,'size':1.5,'color':(1,1,0) }    
-        self.limbDict['ikCntrlSetup'] = {'name':self.name+'Ik', 'icone':'cubo','size':0.75,'color':(1,0,0) }    
-        self.limbDict['startCntrlSetup'] = {'name':self.name+'Start', 'icone':'cubo','size':0.5,'color':(0,1,0) }
-        self.limbDict['midCntrlSetup'] = {'name':self.name+'Mid', 'icone':'cubo', 'size':0.5, 'color':(0,1,0)}
-        self.limbDict['endCntrlSetup'] = {'name':self.name+'End', 'icone':'cubo', 'size':0.5, 'color':(0,1,0)}
-        self.limbDict['poleVecCntrlSetup'] = {'name':self.name+'PoleVec', 'icone':'bola', 'size':0.4, 'color':(1,0,0)}
+        self.limbDict['moveAll1CntrlSetup']={'nameTempl':self.name+'moveAll1', 'icone':'circuloX','size':1.8,'color':(1,1,0) }    
+        self.limbDict['ikCntrlSetup'] = {'nameTempl':self.name+'IkJaa', 'icone':'bola','size':1,'color':(1,1,0) }    
+        self.limbDict['startCntrlSetup'] = {'nameTempl':self.name+'Start', 'icone':'cubo','size':0.5,'color':(0,1,0) }
+        self.limbDict['midCntrlSetup'] = {'nameTempl':self.name+'Mid', 'icone':'cubo', 'size':0.5, 'color':(0,1,0)}
+        self.limbDict['endCntrlSetup'] = {'nameTempl':self.name+'End', 'icone':'cubo', 'size':0.5, 'color':(0,1,0)}
+        self.limbDict['poleVecCntrlSetup'] = {'nameTempl':self.name+'PoleVec', 'icone':'bola', 'size':0.4, 'color':(1,0,0)}
         self.limbDict['nodeTree'] = {}
         self.limbDict['nameConventions'] = None
         ##e implementar no codigo padroes de nome 
@@ -110,8 +108,10 @@ class Limb():
         #cria joint1
         #criando a matriz do joint conforme a orientacao setada
         x = nNormal ^ AB.normal()
-        t = x.normal() ^ nNormal        
+        t = x.normal() ^ nNormal  
+              
         if self.axis=='Y':
+            
             list = [ nNormal.x, nNormal.y, nNormal.z, 0, t.x, t.y, t.z, 0, x.x, x.y, x.z, 0, A.x, A.y,A.z,1]
         elif self.axis=='Z':
             list = [ x.x, x.y, x.z, 0,nNormal.x, nNormal.y, nNormal.z, 0,t.x, t.y, t.z, 0, A.x, A.y,A.z,1]
@@ -196,33 +196,41 @@ class Limb():
         else:
             axisName='X'
         
-        kwargs=self.limbDict['moveAll1CntrlSetup']
-        moveAll1Cntrl = CntrlCrv(j1, **kwargs)
+        #kwargs=self.limbDict['moveAll1CntrlSetup']
+        displaySetup= self.limbDict['moveAll1CntrlSetup'].copy()
+        cntrlName = displaySetup['nameTempl']
+
+        moveAll1Cntrl = cntrlCrv( name = cntrlName, obj= j1 , **displaySetup)
         
-        kwargs=self.limbDict['endCntrlSetup']            
-        endCntrl = CntrlCrv (j1,'parentConstraint', **kwargs )
-        endCntrl.cntrl.addAttr('manualStretch', at='float',min=.1,dv=1, k=1)
+        displaySetup= self.limbDict['endCntrlSetup'].copy()
+        cntrlName = displaySetup['nameTempl']                  
+        endCntrl = cntrlCrv (name=cntrlName, obj=j1,connType='parentConstraint', **displaySetup )
         
-        kwargs=self.limbDict['midCntrlSetup'] 
-        midCntrl = CntrlCrv (j2,'orientConstraint',**kwargs)
-        midCntrl.cntrl.addAttr('manualStretch', at='float',min=.1,dv=1, k=1)
+        endCntrl.addAttr('manualStretch', at='float',min=.1,dv=1, k=1)
         
-        pm.pointConstraint (j2, midCntrl.cntrlGrp, mo=True)
+        displaySetup=self.limbDict['midCntrlSetup'].copy()
+        cntrlName = displaySetup['nameTempl']
+        midCntrl = cntrlCrv (name=cntrlName,obj=j2,connType = 'orientConstraint',**displaySetup)
+        midCntrl.addAttr('manualStretch', at='float',min=.1,dv=1, k=1)
+        
+        pm.pointConstraint (j2, midCntrl.getParent(), mo=True)
         
         ##Estrutura IK
         ikH = pm.ikHandle (sj=j1, ee=j3, sol="ikRPsolver")
-        kwargs=self.limbDict['ikCntrlSetup']
-        ikCntrl = CntrlCrv(ikH[0],'parent',**kwargs)
+        displaySetup=self.limbDict['ikCntrlSetup'].copy()
+        cntrlName = displaySetup['nameTempl']
+        ikCntrl = cntrlCrv(name = cntrlName, obj=ikH[0],connType='parent',**displaySetup)
         
-        ikCntrl.cntrl.addAttr ('pin', at='float',min=0, max=1,dv=0, k=1)
-        ikCntrl.cntrl.addAttr ('bias', at='float',min=-0.9, max=0.9, k=1)
-        ikCntrl.cntrl.addAttr ('autoStretch', at='float',min=0, max=1,dv=1, k=1)
-        ikCntrl.cntrl.addAttr ('manualStretch', at='float',dv=1, k=1)
-        ikCntrl.cntrl.addAttr ('twist', at='float',dv=0, k=1)        
+        ikCntrl.addAttr ('pin', at='float',min=0, max=1,dv=0, k=1)
+        ikCntrl.addAttr ('bias', at='float',min=-0.9, max=0.9, k=1)
+        ikCntrl.addAttr ('autoStretch', at='float',min=0, max=1,dv=1, k=1)
+        ikCntrl.addAttr ('manualStretch', at='float',dv=1, k=1)
+        ikCntrl.addAttr ('twist', at='float',dv=0, k=1)        
             
         #pole vector
-        kwargs=self.limbDict['poleVecCntrlSetup']
-        poleVec = CntrlCrv(j2,**kwargs)
+        displaySetup=self.limbDict['poleVecCntrlSetup'].copy()
+        cntrlName = displaySetup['nameTempl']
+        poleVec = cntrlCrv(name=cntrlName, obj=j2,**displaySetup)
         
         #calcula a direcao q deve ficar o polevector
         BA=B-A
@@ -237,24 +245,25 @@ class Limb():
         #test=pm.spaceLocator (p=(0,0,0)) # locator de teste de onde calculou o ponto mais proximo
         #pm.xform (test, t=T)
         
-        pm.xform (poleVec.cntrlGrp , t=Pole) 
-        pm.xform (poleVec.cntrlGrp , ro=(0,0,0)) 
-        pm.poleVectorConstraint (poleVec.cntrl, ikH[0])
-        pm.parent (midCntrl.cntrlGrp, endCntrl.cntrl)
-        pm.parent (endCntrl.cntrlGrp, moveAll1Cntrl.cntrl)
-        pm.parent (moveAll1Cntrl.cntrlGrp, poleVec.cntrlGrp, ikCntrl.cntrlGrp, limbMoveAll)
+        pm.xform (poleVec.getParent() , t=Pole) 
+        pm.xform (poleVec.getParent() , ro=(0,0,0)) 
+        pm.poleVectorConstraint (poleVec, ikH[0])
+        pm.parent (midCntrl.getParent(), endCntrl)
+        pm.parent (endCntrl.getParent(), moveAll1Cntrl)
+        pm.parent (moveAll1Cntrl.getParent(), poleVec.getParent(), ikCntrl.getParent(), limbMoveAll)
 
         #handCntrls se houver
         if self.handJoint:
-            kwargs=self.limbDict['startCntrlSetup']
-            startCntrl = CntrlCrv (j4,**kwargs)
+            displaySetup=self.limbDict['startCntrlSetup']
+            cntrlName=displaySetup['nameTempl']
+            startCntrl = cntrlCrv (name=cntrlName, obj=j4,**displaySetup)
             buf=pm.group (em=True)
             matrix=pm.xform (j4, q=True, ws=True, m=True)
             pm.xform (buf, m=matrix, ws=True)
-            pm.parent (buf,ikCntrl.cntrl)
-            handCnst = pm.orientConstraint (buf,startCntrl.cntrl, j4, mo=False)
-            pm.pointConstraint (j3,startCntrl.cntrlGrp, mo=True)
-            pm.parent (startCntrl.cntrlGrp, midCntrl.cntrl)
+            pm.parent (buf,ikCntrl)
+            handCnst = pm.orientConstraint (buf,startCntrl, j4, mo=False)
+            pm.pointConstraint (j3,startCntrl.getParent(), mo=True)
+            pm.parent (startCntrl.getParent(), midCntrl)
         
         #display
         ikH[0].visibility.set(0)
@@ -262,13 +271,13 @@ class Limb():
         #grupos de stretch
         startGrp = pm.group (empty=True)
         endGrp=pm.group (empty=True)
-        pm.parent (endGrp,ikCntrl.cntrl,r=True)
+        pm.parent (endGrp,ikCntrl,r=True)
         pm.xform (startGrp , t=p1, ws=True)
-        pm.parent (startGrp,endCntrl.cntrl)
+        pm.parent (startGrp,endCntrl)
         
         ##NODE TREE#######               
         #Pin
-        p5 = pm.xform (poleVec.cntrlGrp, q=True, t=True, ws=True)
+        p5 = pm.xform (poleVec.getParent(), q=True, t=True, ws=True)
         E=om.MVector (p5)
         
         AE = A - E
@@ -291,8 +300,8 @@ class Limb():
         startGrp.worldMatrix[0] >> pinDist1.inMatrix1
         endGrp.worldMatrix[0] >> pinDist2.inMatrix1
         
-        poleVec.cntrl.worldMatrix[0]  >> pinDist1.inMatrix2
-        poleVec.cntrl.worldMatrix[0]  >> pinDist2.inMatrix2
+        poleVec.worldMatrix[0]  >> pinDist1.inMatrix2
+        poleVec.worldMatrix[0]  >> pinDist2.inMatrix2
         
         limbMoveAll.scaleX >> pinMultiScale1.input1
         limbMoveAll.scaleX >> pinMultiScale2.input1
@@ -387,14 +396,15 @@ class Limb():
         stretchPinBlend1.output >> ikfkBlend1.input[0]
         stretchPinBlend2.output >> ikfkBlend2.input[0]
                
-        endCntrl.cntrl.manualStretch >> ikfkBlend1.input[1] ##AQUI PRECISA MULTIPLICAR PELA ESCALA GLOBAL
-        midCntrl.cntrl.manualStretch >> ikfkBlend2.input[1]
+        endCntrl.manualStretch >> ikfkBlend1.input[1] ##AQUI PRECISA MULTIPLICAR PELA ESCALA GLOBAL
+        midCntrl.manualStretch >> ikfkBlend2.input[1]
        
         limbMoveAll.ikfk >> ikfkReverse.inputX
         ikfkReverse.outputX >> ikfkBlend1.attributesBlender
         ikfkReverse.outputX >> ikfkBlend2.attributesBlender
-               
-        weightAttr = midCntrl.cnstr.target.connections(p=True, t='orientConstraint') ##Descobre o parametro de peso do constraint        
+        
+        cnstrConn = midCntrl.connections(t='orientConstraint', d=True, s=False)[0] ## arriscando em pegar o primeiro...
+        weightAttr = cnstrConn.target.connections(p=True, t='orientConstraint') ##Descobre o parametro de peso do constraint        
         ikfkReverse.outputX >> weightAttr[0]
         
         if self.handJoint:
@@ -421,21 +431,21 @@ class Limb():
         fkCntrlVisCond.colorIfTrueR.set (1)
         fkCntrlVisCond.colorIfFalseR.set (0)
         
-        ikCntrlVisCond.outColor.outColorR >> ikCntrl.cntrlGrp.visibility
-        ikCntrlVisCond.outColor.outColorR >> poleVec.cntrlGrp.visibility
-        fkCntrlVisCond.outColor.outColorR >> endCntrl.cntrlGrp.visibility
+        ikCntrlVisCond.outColor.outColorR >> ikCntrl.getParent().visibility
+        ikCntrlVisCond.outColor.outColorR >> poleVec.getParent().visibility
+        fkCntrlVisCond.outColor.outColorR >> endCntrl.getParent().visibility
                        
         ##Atributos e conexoes do controle ik
-        ikCntrl.cntrl.bias >> biasAdd2.input1D[1]
-        ikCntrl.cntrl.bias >> biasAdd1.input1D[0]
-        ikCntrl.cntrl.pin >> stretchPinBlend1.attributesBlender
-        ikCntrl.cntrl.pin >> stretchPinBlend2.attributesBlender
-        ikCntrl.cntrl.manualStretch >> stretchManualStretch1.input1
-        ikCntrl.cntrl.manualStretch >> stretchManualStretch2.input1
-        ikCntrl.cntrl.manualStretch >> stretchManualStretch3.input1
-        ikCntrl.cntrl.autoStretch >> autoStretchSwitch.attributesBlender
-        ikCntrl.cntrl.pin >> twistBlend1.attributesBlender
-        ikCntrl.cntrl.twist >> twistBlend1.input[0]
+        ikCntrl.bias >> biasAdd2.input1D[1]
+        ikCntrl.bias >> biasAdd1.input1D[0]
+        ikCntrl.pin >> stretchPinBlend1.attributesBlender
+        ikCntrl.pin >> stretchPinBlend2.attributesBlender
+        ikCntrl.manualStretch >> stretchManualStretch1.input1
+        ikCntrl.manualStretch >> stretchManualStretch2.input1
+        ikCntrl.manualStretch >> stretchManualStretch3.input1
+        ikCntrl.autoStretch >> autoStretchSwitch.attributesBlender
+        ikCntrl.pin >> twistBlend1.attributesBlender
+        ikCntrl.twist >> twistBlend1.input[0]
 
         ###Dicionario do Limb
         self.limbDict['ikCntrl'] = ikCntrl
@@ -449,13 +459,7 @@ class Limb():
             self.limbDict['joint4'] = j4
         self.limbDict['limbMoveAll'] = limbMoveAll
         
-        ##implementar aqui as setagens padrao
-        self.limbDict['ikCntrlSetup'] = {'name':None, 'icone':None, 'cntrlSize':None, 'rotOrder':None}
-        self.limbDict['midCntrlSetup'] = {'name':None, 'icone':None, 'cntrlSize':None, 'rotOrder':None}
-        self.limbDict['endCntrlSetup'] = {'name':None, 'icone':None, 'cntrlSize':None, 'rotOrder':None}
-        self.limbDict['poleVecSetup'] = {'name':None, 'icone':None, 'cntrlSize':None, 'rotOrder':None}
-        self.limbDict['nodeTree']={}
-        self.limbDict['nameConventions']=None
+
 
 
 
